@@ -1,3 +1,8 @@
+---
+output:
+  html_document: default
+  pdf_document: default
+---
 
 ```{r}
 library(rtweet)
@@ -6,6 +11,9 @@ library(igraph)
 library(dplyr)
 library(ggraph)
 library(sentimentr)
+library(sqldf)
+library(tidyr)
+library(ggplot2)
 ```
 
 ```{r}
@@ -38,6 +46,80 @@ res = data.frame(sentiment$ave_sentiment,tweets$created_at[1:10000])
 colnames(res)=c("sentiment","created_at")
 head(res)
 ```
+
+
 ```{r}
-plot(x = res$created_at, y= res$sentiment)
+res = separate(res,"created_at",c("date","time"),sep=" ")
 ```
+
+```{r}
+head(res)
+```
+
+```{r}
+sec <- sqldf("select sentiment, date, time, count(sentiment) as count from res group by date")
+head(sec)
+```
+
+
+```{r}
+sec1 <- sqldf("select sentiment, date, time, count(sentiment) as count_neg2 from res where sentiment>=-2.20663 and sentiment<=-0.13381 group by date")
+#sum(sec1$count)
+#sec1$count = sec1$count/sum(sec1$count) *100
+head(sec1)
+```
+
+
+```{r}
+sec2 <- sqldf("select sentiment, date, time, count(sentiment) as count_neg1 from res where sentiment>-0.13381 and sentiment<=0 group by date")
+#sum(sec2$count)
+#sec2$count = sec2$count/sum(sec2$count) *100
+head(sec2)
+```
+
+
+```{r}
+sec3 <- sqldf("select sentiment, date, time, count(sentiment) as count_pos1 from res where sentiment>0 and sentiment<=0.10840 group by date")
+#sum(sec3$count)
+#sec3$count = sec3$count/sum(sec3$count) *100
+head(sec3)
+```
+
+
+```{r}
+sec4 <- sqldf("select sentiment, date, time, count(sentiment) as count_pos2 from res where sentiment>0.10840 and sentiment<=1.03500 group by date")
+#sum(sec4$count)
+#sec4$count = sec4$count/sum(sec4$count) *100
+head(sec4)
+```
+
+```{r}
+sec = cbind(sec,sec1$count_neg2,sec2$count_neg1,sec3$count_pos1,sec4$count_pos2)
+colnames(sec)[5]<-"neg2"
+colnames(sec)[6]<-"neg1"
+colnames(sec)[7]<-"pos1"
+colnames(sec)[8]<-"pos2"
+
+head(sec)
+```
+
+```{r}
+sec$neg2 = sec$neg2/sec$count * 100
+sec$neg1 = sec$neg1/sec$count * 100
+sec$pos1 = sec$pos1/sec$count * 100
+sec$pos2 = sec$pos2/sec$count * 100
+head(sec)
+```
+```{r}
+sec$date = factor(sec$date)
+head(sec)
+```
+
+```{r}
+ggplot(data=sec,aes(x=date,y=neg2,color="red",group=1))+geom_line()+geom_line(data = sec,aes(x=date,y=neg1,color="violet"))+geom_line(data = sec,aes(x=date,y=pos1,color="blue"))+geom_line(data = sec,aes(x=date,y=pos2,color="green"))
+
+```
+
+
+
+
