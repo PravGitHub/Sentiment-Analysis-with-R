@@ -18,7 +18,8 @@ library(ggplot2)
 ```
 
 ```{r}
-tweets <- na.omit(read.csv(file="C:/Users/praveen/Documents/tweets.csv",stringsAsFactors = FALSE))
+require(curl)
+tweets <- na.omit(read.csv(curl("https://raw.githubusercontent.com/PravGitHub/Sentiment-Analysis-with-R/master/tweets.csv"),stringsAsFactors = FALSE))
 nrow(tweets)
 head(tweets)
 ```
