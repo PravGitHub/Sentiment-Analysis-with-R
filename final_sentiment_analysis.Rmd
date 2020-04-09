@@ -147,6 +147,14 @@ ggplot(data=sec,aes(x=date,y=first_q,color="red",group=1))+geom_line()+geom_line
 
 ```
 
+```{r}
+require(corrplot)
+correlation <- cor(sec[3:6])
+correlation
+corrplot(correlation,method = "circle")
+```
+
+
 # Conclusions
 
 ### The percentage of highly negative tweets (shown by red) sees a sharp increase.
