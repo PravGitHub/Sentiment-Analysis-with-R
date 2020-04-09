@@ -1,0 +1,158 @@
+---
+output:
+  word_document: default
+  html_document: default
+---
+
+
+```{r}
+library(rtweet)
+library(tidytext)
+library(igraph)
+library(dplyr)
+library(ggraph)
+library(sentimentr)
+library(sqldf)
+library(tidyr)
+library(ggplot2)
+```
+
+```{r}
+tweets <- na.omit(read.csv(file="C:/Users/praveen/Documents/tweets.csv",stringsAsFactors = FALSE))
+nrow(tweets)
+head(tweets)
+```
+
+```{r}
+nrow(unique(tweets))
+```
+
+```{r}
+ts_plot(tweets,by="days")
+```
+
+## Seperating into date and time:
+
+```{r}
+tweets = separate(tweets,"created_at",c("date","time"),sep=" ")
+head(tweets)
+```
+
+## Getting the number tweets for each day
+
+```{r}
+sqldf("select date, count(date) from tweets group by date")
+```
+
+### Since 2020-03-29 and 2020-04-06 have a lot fewer tweets compared to the others, we will eliminate these two.
+
+```{r}
+tweets <- subset(tweets,date!= '2020-03-29')
+tweets <- subset(tweets,date!= '2020-04-06')
+
+```
+
+## Verifying the elimination
+
+```{r}
+sqldf("select date, count(date) from tweets group by date")
+```
+
+## Finding the sentiments
+
+```{r}
+sentiment=sentiment_by(tweets$text)
+```
+```{r}
+head(sentiment)
+nrow(sentiment)
+nrow(tweets)
+```
+
+## Finding the quartiles of the sentiments
+
+```{r}
+summary(sentiment$ave_sentiment)
+```
+```{r}
+res = data.frame(sentiment$ave_sentiment,tweets$date)
+colnames(res)=c("sentiment","date")
+head(res)
+```
+
+## Getting the day-wise count
+
+```{r}
+sec <- sqldf("select date, count(sentiment) as count from res group by date")
+sec
+```
+
+# Partitioning based on quartiles
+
+## Min to First quartile
+
+```{r}
+sec1 <- sqldf("select date, count(sentiment) as first_q from res where sentiment>=-2.20663 and sentiment<=-0.02839 group by date")
+sec1
+```
+
+## First quartile to Second quartile (median)
+
+```{r}
+sec2 <- sqldf("select date, count(sentiment) as second_q from res where sentiment>-0.02839 and sentiment<=0.06389 group by date")
+sec2
+```
+
+## Second quartile to third quartile
+
+```{r}
+sec3 <- sqldf("select date, count(sentiment) as third_q from res where sentiment>0.06389 and sentiment<=0.16599 group by date")
+sec3
+```
+
+## Third quartile to Max
+
+```{r}
+sec4 <- sqldf("select date, count(sentiment) as fourth_q from res where sentiment>0.16599 and sentiment<=2.09752 group by date")
+sec4
+```
+
+## Consolidating all the data
+
+```{r}
+sec = cbind(sec,sec1$first_q,sec2$second_q,sec3$third_q,sec4$fourth_q)
+colnames(sec)[3]<-"first_q"
+colnames(sec)[4]<-"second_q"
+colnames(sec)[5]<-"third_q"
+colnames(sec)[6]<-"fourth_q"
+
+sec
+```
+
+## Converting the count values to percentage values
+
+```{r}
+sec$first_q = sec$first_q/sec$count * 100
+sec$second_q = sec$second_q/sec$count * 100
+sec$third_q = sec$third_q/sec$count * 100
+sec$fourth_q = sec$fourth_q/sec$count * 100
+sec
+```
+
+# Plotting the results
+
+```{r}
+ggplot(data=sec,aes(x=date,y=first_q,color="red",group=1))+geom_line()+geom_line(data = sec,aes(x=date,y=second_q,color="violet"))+geom_line(data = sec,aes(x=date,y=third_q,color="blue"))+geom_line(data = sec,aes(x=date,y=fourth_q,color="green"))
+
+```
+
+# Conclusions
+
+### The percentage of highly negative tweets (shown by red) sees a sharp increase.
+
+### The percentage of moderately negative tweets (shown by violet) sees a steady decrease.
+
+### The percentage of moderately positive tweets (shown by blue) peaks early on and then drops.
+
+### The percentage of highly positive tweets (shown by green) is low at the beginning and then increased.
+
